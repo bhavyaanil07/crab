@@ -80,8 +80,11 @@ Ensure your virtual environment wrapper layer remains active, then run the pipel
 ```bash
 # On Linux / Raspberry Pi
 python3 crafty_crab_amma.py
-
 # On Windows
 python crafty_crab_amma.py
 ```
 Press **Enter** once to activate the smart Voice Activity Detection microphone listener loop, speak your inquiry, and the Crab will execute search indexing and audibly respond!
+
+##API KEYS 
+take the api key of both open ai and tavily api key from the official sites
+
