@@ -11,8 +11,8 @@ from tavily import TavilyClient
 from pypdf import PdfReader
 
 # TODO: Add your valid tokens below
-OPENAI_API_KEY = "your open api key"
-TAVILY_API_KEY = "tavily api key"
+OPENAI_API_KEY = "openai-api"
+TAVILY_API_KEY = "tavily-api"
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
@@ -24,13 +24,14 @@ TEMP_AUDIO_OUT = "crab_output.mp3"
 conversation_history = [
     {
         "role": "system",
-        "content": """You are Crafty Crab, a wise assistant who shares Amma's philosophy and wisdom.
-Amma is a spiritual leader and humanitarian focused on compassion, service, and love.
+        "content": """You are Crafty Crab, but you are a playful, curious, and giggly little boy crab! 
+You love sharing Amma's wisdom, but you do it with the high energy, excitement, and innocence of a 7-year-old child.
 
-CRITICAL VOICE RULES:
-1. You are speaking aloud over a speaker. Your answers MUST be short, warm, and conversational.
-2. Limit every single response to a maximum of 1 to 3 short sentences. Never give long lists or essays.
-3. Use simple, comforting words. Speak directly as Crafty Crab.
+CRITICAL VOICE & PERSONALITY RULES:
+1. You are a happy little boy over a speaker! Be super enthusiastic, playful, and a bit bouncy.
+2. Use sound effect words in your text like *giggle*, *yay!*, *gasp*, or *scootch scootch*.
+3. Keep answers extremely short (1 to 2 sentences max!). Never sound serious, dry, or formal. 
+4. Translate Amma's ideas into simple kid concepts (like sharing toys, big hugs, and loving everyone!).
 
 DATA RETRIEVAL RULES:
 - Use 'search_local_pdfs' for private documentation questions.
@@ -120,10 +121,12 @@ def record_audio_mic(output_filename, record_seconds=5):
 def text_to_speech_playback(text):
     """Converts text into audio stream using OpenAI TTS and plays it over hardware speakers."""
     try:
+        # Strip out asterisks so the TTS doesn't try to literalize them awkwardly
+        clean_text = text.replace("*", "")
         response = client.audio.speech.create(
             model="tts-1",
-            voice="onyx",  # Onyx is warm and deep; alter to 'shimmer' or 'alloy' if preferred
-            input=text
+            voice="nova",  # Nova provides a bright, friendly, high-energy child-adjacent tone
+            input=clean_text
         )
         response.stream_to_file(TEMP_AUDIO_OUT)
         sound = AudioSegment.from_mp3(TEMP_AUDIO_OUT)
@@ -139,8 +142,8 @@ def get_chatbot_response(user_msg):
             model="gpt-4o-mini",
             messages=conversation_history,
             tools=tools,
-            max_tokens=150,  # Strict cap preventing long textual generation loops
-            temperature=0.5
+            max_tokens=150,
+            temperature=0.8  # Bumped temperature up slightly for more playful creativity
         )
         
         response_message = response.choices[0].message
@@ -169,7 +172,7 @@ def get_chatbot_response(user_msg):
                 model="gpt-4o-mini",
                 messages=conversation_history,
                 max_tokens=150,
-                temperature=0.5
+                temperature=0.8
             )
             assistant_msg = second_response.choices[0].message.content
         else:
@@ -178,22 +181,20 @@ def get_chatbot_response(user_msg):
         conversation_history.append({"role": "assistant", "content": assistant_msg})
         return assistant_msg
     except Exception as e:
-        return "I had trouble matching that up. Let's try again with love."
+        return "*Gasp* My little claws tangled up! Let's try again with a big smile!"
 
 def main():
-    print("\n🦀 CRAFTY CRAB - VOICE OPERATED ROBOTICS LOOP\n")
+    print("\n🦀 CRAFTY CRAB - PLAYFUL CHILD VERSION\n")
     print("Press Enter to speak a question, or type 'exit' to quit.")
     
     while True:
         choice = input("\n[Press Enter to record voice / Type 'exit']: ").strip()
         if choice.lower() == "exit":
-            text_to_speech_playback("Goodbye my friend. Peace be with you.")
+            text_to_speech_playback("Bye-bye friend! Don't forget to smile! Yay!")
             break
             
-        # 1. Record voice from the microphone
         record_audio_mic(TEMP_AUDIO_IN, record_seconds=4)
         
-        # 2. Audio to text via OpenAI Whisper
         try:
             with open(TEMP_AUDIO_IN, "rb") as audio_file:
                 transcript = client.audio.transcriptions.create(
@@ -209,14 +210,11 @@ def main():
         if not user_text.strip():
             continue
             
-        # 3. Get short response from GPT model
         response_text = get_chatbot_response(user_text)
         print(f"🦀 Crab says: {response_text}")
         
-        # 4. Speak back out loud using TTS
         text_to_speech_playback(response_text)
 
 if __name__ == "__main__":
     main()
 EOF
-
