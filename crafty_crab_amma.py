@@ -5,8 +5,8 @@ from tavily import TavilyClient
 from pypdf import PdfReader
 
 # TODO: Fill in your live API tokens below
-OPENAI_API_KEY = "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"
-TAVILY_API_KEY = "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"
+OPENAI_API_KEY = "syour open ai key"
+TAVILY_API_KEY = "your tavily api key"
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
