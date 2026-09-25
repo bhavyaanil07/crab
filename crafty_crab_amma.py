@@ -1,4 +1,3 @@
-cat > ~/Desktop/crafty_crab/crafty_crab_amma.py << 'EOF'
 import os
 import json
 import time
@@ -216,4 +215,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-EOF
+
