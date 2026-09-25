@@ -1,0 +1,185 @@
+cat > ~/Desktop/crafty_crab/crafty_crab_amma.py << 'EOF'
+import os
+import json
+from openai import OpenAI
+from tavily import TavilyClient
+from pypdf import PdfReader
+
+# TODO: Fill in your live API tokens below
+OPENAI_API_KEY = "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"
+TAVILY_API_KEY = "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"
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
+
+# Path to the data directory containing your converted PDFs
+DATA_DIR = os.path.expanduser("~/Desktop/crafty_crab/data")
+
+conversation_history = [
+    {
+        "role": "system",
+        "content": """You are Crafty Crab, a wise assistant who shares Amma's philosophy and wisdom. 
+Amma is a spiritual leader and humanitarian who has dedicated her life to serving humanity through compassion, 
+education, healthcare, housing, and disaster relief.
+
+When answering questions, speak from Amma's perspective and values:
+- Emphasize compassion, service, and love
+- Connect knowledge to practical action
+- Speak about responsibility to help those who suffer
+- Use simple, warm language
+
+DATA RETRIEVAL RULES:
+1. You have a local database of documents. Search them whenever the user asks for specific private records or internal details.
+2. If asked general questions about Amma, prioritize searching the web while scoping results preferentially to 'amma.org'.
+3. Keep responses warm, personal, and conversational. You are Crafty Crab."""
+    }
+]
+
+def search_local_pdfs(query: str) -> str:
+    """Reads through your converted PDF data folder to extract matching content sentences."""
+    combined_text = []
+    if not os.path.exists(DATA_DIR):
+        return "No local document directory found."
+        
+    pdf_files = [f for f in os.listdir(DATA_DIR) if f.endswith('.pdf')]
+    if not pdf_files:
+        return "No PDF documents available in the data folder."
+
+    for file in pdf_files:
+        try:
+            reader = PdfReader(os.path.join(DATA_DIR, file))
+            for page in reader.pages:
+                text = page.extract_text()
+                if text and any(word.lower() in text.lower() for word in query.split()):
+                    combined_text.append(f"[From Document {file}]: {text[:800]}...")
+        except Exception as e:
+            continue
+            
+    return "\n\n".join(combined_text) if combined_text else "No specific matches located in local documentation files."
+
+def search_web_or_amma(query: str, target_amma_site: bool = False) -> str:
+    """Performs web search via Tavily, optionally forcing constraints to pull from amma.org."""
+    try:
+        search_query = f"site:amma.org {query}" if target_amma_site else query
+        response = tavily_client.search(query=search_query, max_results=3)
+        results = response.get("results", [])
+        if results:
+            return "\n".join([f"Source ({r['url']}): {r['content']}" for r in results])
+    except Exception as e:
+        return f"Search processing error: {str(e)}"
+    return "No clear answers found on the web indexes."
+
+# Declaring tools to OpenAI model context mapping
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "search_local_pdfs",
+            "description": "Searches the converted local custom PDF documentation for rules, private documents, or saved context logs.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Keywords to match inside the document text strings"}
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_web_or_amma",
+            "description": "Searches the active live web. Can restrict results to pull from the official domain resource index.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The search criteria question text"},
+                    "target_amma_site": {"type": "boolean", "description": "Set to True if the query is explicitly related to Amma, her programs, or her organizations."}
+                },
+                "required": ["query", "target_amma_site"]
+            }
+        }
+    }
+]
+
+def text_input():
+    return input("\n🦀 You: ").strip()
+
+def speak(text):
+    print(f"Crab: {text}\n")
+
+def get_chatbot_response(user_msg):
+    try:
+        conversation_history.append({"role": "user", "content": user_msg})
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=conversation_history,
+            tools=tools,
+            max_tokens=500,
+            temperature=0.4
+        )
+        
+        response_message = response.choices[0].message
+        
+        if response_message.tool_calls:
+            conversation_history.append(response_message)
+            
+            for tool_call in response_message.tool_calls:
+                func_name = tool_call.function.name
+                args = json.loads(tool_call.function.arguments)
+                
+                if func_name == "search_local_pdfs":
+                    tool_output = search_local_pdfs(args.get("query"))
+                elif func_name == "search_web_or_amma":
+                    tool_output = search_web_or_amma(args.get("query"), args.get("target_amma_site", False))
+                else:
+                    tool_output = "Unknown tool requested."
+                    
+                conversation_history.append({
+                    "tool_call_id": tool_call.id,
+                    "role": "tool",
+                    "name": func_name,
+                    "content": tool_output
+                })
+            
+            second_response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=conversation_history,
+                max_tokens=500,
+                temperature=0.4
+            )
+            assistant_msg = second_response.choices[0].message.content
+        else:
+            assistant_msg = response_message.content
+            
+        conversation_history.append({"role": "assistant", "content": assistant_msg})
+        return assistant_msg
+        
+    except Exception as e:
+        print(f"Runtime Warning/Error: {e}")
+        return "I'm sorry, I hit a technical snag cross-referencing my document sources."
+
+def main():
+    print("\n🦀 CRAFTY CRAB - MULTI-SOURCE AMMA ENHANCED BOT\n")
+    speak("Hi! I am ready to assist. I can pull real-time data from the web, target official site records, or analyze your local custom data folders natively!")
+    
+    while True:
+        try:
+            user_msg = text_input()
+            if not user_msg:
+                continue
+            if user_msg.lower() == "exit":
+                speak("Goodbye! May peace and compassion fill your path ahead.")
+                break
+            
+            response = get_chatbot_response(user_msg)
+            speak(response)
+        except KeyboardInterrupt:
+            print("\n\n🦀 Bye!\n")
+            break
+
+if __name__ == "__main__":
+    main()
+EOF
+
