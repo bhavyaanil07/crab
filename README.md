@@ -85,6 +85,27 @@ python crafty_crab_amma.py
 ```
 Press **Enter** once to activate the smart Voice Activity Detection microphone listener loop, speak your inquiry, and the Crab will execute search indexing and audibly respond!
 
-##API KEYS 
+## API KEYS 
 take the api key of both open ai and tavily api key from the official sites
+
+## raspberry connections requirements
+```powershell
+sudo apt update
+sudo apt install -y portaudio19-dev python3-dev ffmpeg
+```
+## setup venv 
+```bash
+cd ~/Desktop/crafty_crab
+python3 -m venv myenv
+source myenv/bin/activate
+```
+
+## install required libraries
+```bash
+pip install --upgrade pip
+pip install openai tavily-python pypdf pyaudio pydub
+```
+
+
+
 
